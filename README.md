@@ -1,5 +1,7 @@
 # OpenAlex 学者迁移数据 Pipeline (1998–2025)
 
+*语言 / Language: **中文** · [English](README.en.md)*
+
 基于 **OpenAlex** 全量 `works` 快照，复刻 [Scholarly Migration Database (SMD)](https://www.scholarlymigration.org/data.html) 的方法，自建学者国际迁移数据，抽取范围 **1998–2025**。
 
 > **动机**：SMD 2.0 官方数据中，**双边流（countryflows）只更新到 2022**（存量表到 2024）。本 pipeline 直接从 OpenAlex 重建迁移数据，把国家×年存量与**双边流都延伸到 2025**，并与官方数据做了一致性验证。
