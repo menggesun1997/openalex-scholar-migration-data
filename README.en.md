@@ -45,11 +45,24 @@ openalex_pipeline/
 
 ## Method (following SMD)
 
-1. **Extract**: read S3 parquet directly with DuckDB (column projection + predicate pushdown; raw data never lands on disk), exploding each work's authors into `(author_id, publication_year, country)` and counting.
-2. **Residence country**: for each `author × year`, take the most frequent country as that year's "residence".
-3. **Migration event**: order each author's years; a change in residence vs. the previous observed year is one migration event, dated to the year the new residence first appears.
-4. **Padding (stock denominator)**: if an author has no publication in a year but publishes within the next 2 years, backfill that year with the residence of the next available year so they count toward that year's researcher population (replicating SMD's `padded_population_of_researchers`).
-5. **Aggregate**: country-year stock, in/out/net migration and rates; bilateral flows `(year, from, to, n_migrations)`.
+Field names below match the scripts and data exactly. In OpenAlex, each work's author has an `author_id`, a `publication_year`, and a `country` (the country of the author's affiliation).
+
+**Step 1 — Extract (`01_extract.py` / `02_extract_big.py`)**
+Read the cloud data directly with DuckDB (only the needed columns; raw data never lands on disk). Explode every author of every work and count "how many times a given author, in a given year, appears in a given country", producing a 4-column table: `author_id, year, country, n` (`n` = count).
+
+**Step 2 — Residence per author-year (`residence` table in `03_migration.py`)**
+An author may list several countries in one year. Rule: **the country with the highest count `n` is that year's residence** (ties broken by the larger country code, only for reproducibility). Each author-year keeps one row: `author_id, year, residence`.
+
+**Step 3 — Migration events (`events` table)**
+Sort each author's rows by year and compare consecutively: **if this year's residence differs from the previous observed year's, that is one migration event**, recorded as "from the previous country to this year's country", dated to this year.
+
+**Step 4 — Padding the researcher count (`04_padding.py`)**
+An author who skips publishing in a year "disappears" that year. Following SMD: **if they publish again within the next 1–2 years, treat them as still present that year**, backfilling with the residence of the next available year, so they still count toward that year's researcher total. This only affects the researcher count, not the events from Step 3.
+
+**Step 5 — Aggregate (export CSV)**
+Aggregate by country and year into two outputs:
+- Country-year: `n_researchers`, `inmigration`, `outmigration`, `netmigration`, and their rates.
+- Bilateral flows: `year, from_country, to_country, n_migrations`.
 
 ---
 
@@ -117,6 +130,7 @@ After aligning the slice (gender=all, field=all, overlapping years) with the off
 
 - Top 2022 corridors match closely: USA→CHN (official 26073 / here 29997), GBR→USA (11426 / 12461), IND→USA (7421 / 9790), etc.
 - **Absolute stock levels** differ systematically from the official padded figure (raw ≈ 58% of official; after 2-year backfill ≈ 137%), because SMD's exact padding is proprietary and unpublished. **Prefer rates / relative measures or normalize**, rather than comparing absolute stocks directly.
+- The stock scatter plots only include points where **both** sources are > 0. A few country-years appear in only one source (coverage mismatch between the two datasets, not a value disagreement); including them would distort the log-log correlation.
 - In/out counts correlated ~0.98 with the official data in earlier analysis (same slice); this round focuses on bilateral flows and stock.
 
 ![Stock consistency](results/compare_stock_padding.png)

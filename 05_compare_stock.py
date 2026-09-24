@@ -65,14 +65,16 @@ print(f"\nper-country padded-stock time-series Pearson: "
 fig, axes = plt.subplots(1, 2, figsize=(11, 5.2))
 for ax, (col, lab) in zip(axes, [("raw_pop", "RAW stock"),
                                   ("pad_pop", "PADDED stock")]):
-    x = m[col].astype(float) + 1
-    y = m["off_pop"].astype(float) + 1
+    x = m[col].astype(float)
+    y = m["off_pop"].astype(float)
+    ok = (x > 0) & (y > 0)
+    x, y = x[ok], y[ok]
     ax.scatter(x, y, s=7, alpha=0.25, edgecolors="none")
     lim = [1, max(x.max(), y.max())]
     ax.plot(lim, lim, "r--", lw=1, label="y=x")
     r = stats.pearsonr(np.log(x), np.log(y))[0]
     ax.set_xscale("log"); ax.set_yscale("log")
-    ax.set_title(f"{lab} vs official padded\nlog-log Pearson={r:.3f}")
+    ax.set_title(f"{lab} vs official padded\nlog-log Pearson={r:.3f}  (n={len(x)})")
     ax.set_xlabel(f"Mine: {lab}")
     ax.set_ylabel("Official SMD 2.0 padded pop")
     ax.legend(loc="upper left", fontsize=8)
